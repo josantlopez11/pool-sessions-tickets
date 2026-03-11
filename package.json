@@ -1,0 +1,13 @@
+{
+  "name": "poolstickets",
+  "version": "1.0.0",
+  "description": "Pool Sessions ticket backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
