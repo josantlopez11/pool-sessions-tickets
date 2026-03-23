@@ -86,18 +86,8 @@ app.post("/create-checkout-session", async (req, res) => {
       return res.status(400).json({ error: "Cantidad inválida." });
     }
 
-    const { data: remaining, error: remainingError } = await supabaseAdmin.rpc(
-      "get_remaining_tickets",
-      { p_event_slug: EVENT_SLUG }
-    );
-
-    if (remainingError) {
-      return res.status(500).json({ error: "No se pudo consultar disponibilidad." });
-    }
-
-    if (!remaining || remaining <= 0) {
-      return res.status(400).json({ error: "Evento agotado." });
-    }
+    // 🔥 TEMP: sin control de disponibilidad
+    const remaining = MAX_PER_PURCHASE;
 
     const finalQuantity = Math.min(quantity, remaining);
     const totalAmount = finalQuantity * UNIT_PRICE;
