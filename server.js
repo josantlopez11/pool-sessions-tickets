@@ -1,4 +1,7 @@
 // server.js
+console.log("Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
+console.log("Stripe Secret Key:", !!process.env.STRIPE_SECRET_KEY);
+console.log("App URL:", process.env.APP_URL);
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
