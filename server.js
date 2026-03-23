@@ -2,6 +2,7 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
+dotenv.config();
 const { createClient } = require("@supabase/supabase-js");
 const Stripe = require("stripe");
 const crypto = require("crypto");
