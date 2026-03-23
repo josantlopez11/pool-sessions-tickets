@@ -1,3 +1,4 @@
+// server.js
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -5,6 +6,10 @@ const { createClient } = require("@supabase/supabase-js");
 const Stripe = require("stripe");
 const crypto = require("crypto");
 const QRCode = require("qrcode");
+
+// 🔹 Para Node 16+ usamos node-fetch
+const fetch = require("node-fetch");
+globalThis.fetch = fetch;
 
 dotenv.config();
 const app = express();
@@ -110,10 +115,7 @@ app.post("/create-checkout-session", async (req, res) => {
       mode: "payment",
       customer_email: buyerEmail,
       client_reference_id: order.id,
-      metadata: {
-        order_id: order.id,
-        ticket_quantity: String(finalQuantity),
-      },
+      metadata: { order_id: order.id, ticket_quantity: String(finalQuantity) },
       line_items: [
         {
           quantity: finalQuantity,
@@ -133,6 +135,7 @@ app.post("/create-checkout-session", async (req, res) => {
 
     res.json({ ok: true, checkoutUrl: session.url, orderId: order.id });
   } catch (error) {
+    console.error("Create Checkout Error:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -152,11 +155,7 @@ app.post("/stripe-webhook", express.raw({ type: "application/json" }), async (re
     const session = event.data.object;
     const orderId = session.metadata.order_id;
 
-    const { data: order } = await supabaseAdmin
-      .from("orders")
-      .select("*")
-      .eq("id", orderId)
-      .single();
+    const { data: order } = await supabaseAdmin.from("orders").select("*").eq("id", orderId).single();
 
     if (order && order.payment_status !== "paid") {
       await supabaseAdmin
@@ -177,64 +176,6 @@ app.post("/stripe-webhook", express.raw({ type: "application/json" }), async (re
   }
 
   res.json({ received: true });
-});
-
-// Obtener orden + tickets
-app.get("/order/:orderId", async (req, res) => {
-  const { orderId } = req.params;
-  const { data: order } = await supabaseAdmin.from("orders").select("*").eq("id", orderId).single();
-  const { data: tickets } = await supabaseAdmin.from("tickets").select("*").eq("order_id", orderId);
-  res.json({ order, tickets });
-});
-
-// Validar QR
-app.get("/validate", async (req, res) => {
-  const { token } = req.query;
-  const { data: ticket } = await supabaseAdmin.from("tickets").select("*").eq("qr_token", token).single();
-
-  if (!ticket) return res.json({ valid: false, message: "Boleto no encontrado" });
-  if (ticket.status === "used") return res.json({ valid: false, message: "Boleto ya utilizado" });
-  if (ticket.status === "cancelled") return res.json({ valid: false, message: "Boleto cancelado" });
-
-  res.json({ valid: true, message: "Boleto válido", ticket });
-});
-
-// QR como imagen
-app.get("/ticket/:ticketId/qr", async (req, res) => {
-  const { ticketId } = req.params;
-  const { data: ticket } = await supabaseAdmin.from("tickets").select("*").eq("id", ticketId).single();
-  if (!ticket) return res.status(404).json({ message: "Ticket no encontrado" });
-
-  const validationUrl = `${process.env.APP_URL}/validate?token=${ticket.qr_token}`;
-  const qr = await QRCode.toBuffer(validationUrl, { type: "png", width: 500, margin: 2 });
-  res.setHeader("Content-Type", "image/png");
-  res.send(qr);
-});
-
-// Servir ticket HTML
-app.get("/ticket/:ticketId", async (req, res) => {
-  const { ticketId } = req.params;
-  const { data: ticket } = await supabaseAdmin.from("tickets").select("*").eq("id", ticketId).single();
-  if (!ticket) return res.status(404).send("<h1>Ticket no encontrado</h1>");
-
-  const { data: order } = await supabaseAdmin.from("orders").select("*").eq("id", ticket.order_id).single();
-  const qrImageUrl = `/ticket/${ticket.id}/qr`;
-  const statusText = ticket.status === "valid" ? "VÁLIDO" : ticket.status === "used" ? "USADO" : "CANCELADO";
-
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="es">
-    <head><meta charset="UTF-8"/><title>${EVENT_NAME} · Ticket</title></head>
-    <body>
-      <h1>${EVENT_NAME}</h1>
-      <p>Comprador: ${order?.buyer_name || "Sin nombre"}</p>
-      <p>Correo: ${order?.buyer_email || "-"}</p>
-      <p>Ticket Code: ${ticket.ticket_code}</p>
-      <p>Estado: ${statusText}</p>
-      <img src="${qrImageUrl}" alt="QR del boleto"/>
-    </body>
-    </html>
-  `);
 });
 
 const PORT = process.env.PORT || 3000;
