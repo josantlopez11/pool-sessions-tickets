@@ -68,7 +68,7 @@ app.post("/create-checkout-session", async (req, res) => {
     const { buyerName, buyerEmail, buyerPhone, ticketQuantity } = req.body;
     const quantity = Number(ticketQuantity);
 
-    if (!buyerName || buyerName.trim().length < 5) {
+    if (!buyerName || buyerName.trim().length < 2) {
       return res.status(400).json({ error: "Nombre inválido." });
     }
 
